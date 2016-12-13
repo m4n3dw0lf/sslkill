@@ -1,1 +1,2 @@
 scapy==2.3.3
+git+git://github.com/kti/python-netfilterqueue
