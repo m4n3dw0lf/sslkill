@@ -229,10 +229,10 @@ if __name__ == "__main__":
                 os.system("echo 0 > /proc/sys/net/ipv4/ip_forward")
 		os.system('iptables -t nat -F')
 		exit(0)
-	#except Exception as e:
-	print banner
-	print help
-	print "[!] Exception caught: {}".format(e)
-	os.system("echo 0 > /proc/sys/net/ipv4/ip_forward")
-	os.system('iptables -t nat -F')
-	exit(0)
+	except Exception as e:
+		print banner
+		print help
+		print "[!] Exception caught: {}".format(e)
+		os.system("echo 0 > /proc/sys/net/ipv4/ip_forward")
+		os.system('iptables -t nat -F')
+		exit(0)
