@@ -58,6 +58,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
 
     def connect_intercept(self):
         hostname = self.path.split(':')[0]
+	print "Connection intercepted {}".format(self.path)
         certpath = "%s/%s.crt" % (self.certdir.rstrip('/'), hostname)
 
         with self.lock:
@@ -106,7 +107,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
                 other.sendall(data)
 
     def do_GET(self):
-        if self.path == 'http://proxy2.test/':
+        if self.path == 'http://sslkill/':
             self.send_cacert()
             return
 
@@ -119,7 +120,6 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
                 req.path = "https://%s%s" % (req.headers['Host'], req.path)
             else:
                 req.path = "http://%s%s" % (req.headers['Host'], req.path)
-
         req_body_modified = self.request_handler(req, req_body)
         if req_body_modified is False:
             self.send_error(403)

