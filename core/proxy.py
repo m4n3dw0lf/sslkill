@@ -114,7 +114,6 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         req = self
         content_length = int(req.headers.get('Content-Length', 0))
         req_body = self.rfile.read(content_length) if content_length else None
-
         if req.path[0] == '/':
             if isinstance(self.connection, ssl.SSLSocket):
                 req.path = "https://%s%s" % (req.headers['Host'], req.path)
@@ -127,14 +126,14 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         elif req_body_modified is not None:
             req_body = req_body_modified
             req.headers['Content-length'] = str(len(req_body))
-
         u = urlparse.urlsplit(req.path)
         scheme, netloc, path = u.scheme, u.netloc, (u.path + '?' + u.query if u.query else u.path)
         assert scheme in ('http', 'https')
         if netloc:
             req.headers['Host'] = netloc
+	    if netloc.startswith("wwww"):
+		netloc = netloc[1:]
         setattr(req, 'headers', self.filter_headers(req.headers))
-
         try:
             origin = (scheme, netloc)
             if not origin in self.tls.conns:

