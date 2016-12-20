@@ -107,11 +107,11 @@ class SSLStripRequestHandler(ProxyRequestHandler):
 			modified = True
 		except:
 			pass
-		#try:
-		#	del res.headers['Set-Cookie']
-		#	modified = True
-		#except:
-		#	pass
+		try:
+			del res.headers['Set-Cookie']
+			modified = True
+		except:
+			pass
 		if modified:
 			print "\n[+] Modified Headers:"
 			print res.headers
