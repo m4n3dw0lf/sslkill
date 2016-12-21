@@ -160,13 +160,16 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         u = urlparse.urlsplit(req.path)
         scheme, netloc, path = u.scheme, u.netloc, (u.path + '?' + u.query if u.query else u.path)
         assert scheme in ('http', 'https')
+	gamechanger = False
         if netloc:
             req.headers['Host'] = netloc
 	    if netloc.startswith("wwww"):
 		netloc = netloc[1:]
+		scheme = "https"
         setattr(req, 'headers', self.filter_headers(req.headers))
         try:
             origin = (scheme, netloc)
+	    print "[+] Connection: {}://{}".format(scheme, netloc)
             if not origin in self.tls.conns:
                 if scheme == 'https':
                     self.tls.conns[origin] = httplib.HTTPSConnection(netloc, timeout=self.timeout)
@@ -174,8 +177,10 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
                     self.tls.conns[origin] = httplib.HTTPConnection(netloc, timeout=self.timeout)
             conn = self.tls.conns[origin]
             conn.request(self.command, path, req_body, dict(req.headers))
+	    print "[+] Command: {}".format(self.command)
+	    print "[+] Path: {}".format(path)
+	    print "----------------------------------------------------------------------"
             res = conn.getresponse()
-
             version_table = {10: 'HTTP/1.0', 11: 'HTTP/1.1'}
             setattr(res, 'headers', res.msg)
             setattr(res, 'response_version', version_table[res.version])
@@ -189,6 +194,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
 
             res_body = res.read()
         except Exception as e:
+	    print "Exception !!! ---- > : {}".format(e)
             if origin in self.tls.conns:
                 del self.tls.conns[origin]
             self.send_error(502)
@@ -197,7 +203,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         content_encoding = res.headers.get('Content-Encoding', 'identity')
         res_body_plain = self.decode_content_body(res_body, content_encoding)
 
-        res_body_modified = self.response_handler(req, req_body, res, res_body_plain)
+        res_body_modified = self.response_handler(req, req_body, res, res_body_plain, scheme, netloc, path)
         if res_body_modified is False:
             self.send_error(403)
             return
@@ -294,7 +300,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
     def request_handler(self, req, req_body):
         pass
 
-    def response_handler(self, req, req_body, res, res_body):
+    def response_handler(self, req, req_body, res, res_body, scheme, netloc, path):
         pass
 
 

