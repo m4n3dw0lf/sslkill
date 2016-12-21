@@ -2,7 +2,7 @@
 #Modified by: m4n3dw0lf 2016
 
 #coding=UTF-8
-# This file is part of the program sslkill
+# This file is part of the program sslkill with the original writter license
 
 #Redistribution and use in source and binary forms, with or without
 #modification, are permitted provided that the following conditions are met:
