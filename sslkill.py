@@ -90,6 +90,9 @@ class SSLStripRequestHandler(ProxyRequestHandler):
 	print "\n----------------------------[Response]--------------------------------"
 	if res.headers:
 		modified = False
+		#Protection Headers to Strip
+		protection_headers = ['Strict-Transport-Security','Alt-Svc','Set-Cookie']
+
 		print "\n[+] Original Headers:"
 		print res.headers
 		print
@@ -104,18 +107,8 @@ class SSLStripRequestHandler(ProxyRequestHandler):
 		except:
 			pass
 		try:
-			del res.headers['Strict-Transport-Security']
-			modified = True
-		except:
-			pass
-		try:
-			del res.headers['Alt-Svc']
-			modified = True
-		except:
-			pass
-		try:
-			del res.headers['Set-Cookie']
-			modified = True
+			for x in protection_headers:
+				del res.headers[x]
 		except:
 			pass
 		if modified:
