@@ -19,7 +19,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
 # USA
 
-version = 0.4
+version = 0.5
 banner = """\n
 
   ██████   ██████  ██▓        ██ ▄█▀ ██▓ ██▓     ██▓
@@ -234,7 +234,7 @@ class SSLKiller(object):
 
 if __name__ == "__main__":
 
-	print "\n\n[!!!]              TOOL NOT YET AVAILABLE             [!!!]\n\n"
+	print "\n[!]              TOOL IN BETA TESTING             [!]\n"
 
 	if os.geteuid() != 0:
         	sys.exit("[-] Only for roots kido! ")
