@@ -160,7 +160,6 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         u = urlparse.urlsplit(req.path)
         scheme, netloc, path = u.scheme, u.netloc, (u.path + '?' + u.query if u.query else u.path)
         assert scheme in ('http', 'https')
-	gamechanger = False
         if netloc:
             req.headers['Host'] = netloc
 	    if netloc.startswith("wwww"):
