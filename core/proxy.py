@@ -82,35 +82,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         self.log_message(format, *args)
 
     def do_CONNECT(self):
-        if os.path.isfile(self.cakey) and os.path.isfile(self.cacert) and os.path.isfile(self.certkey) and os.path.isdir(self.certdir):
-            self.connect_intercept()
-        else:
-            self.connect_relay()
-
-    def connect_intercept(self):
-        hostname = self.path.split(':')[0]
-	print "Connection intercepted {}".format(self.path)
-        certpath = "%s/%s.crt" % (self.certdir.rstrip('/'), hostname)
-
-        with self.lock:
-            if not os.path.isfile(certpath):
-                epoch = "%d" % (time.time() * 1000)
-                p1 = Popen(["openssl", "req", "-new", "-key", self.certkey, "-subj", "/CN=%s" % hostname], stdout=PIPE)
-                p2 = Popen(["openssl", "x509", "-req", "-days", "3650", "-CA", self.cacert, "-CAkey", self.cakey, "-set_serial", epoch, "-out", certpath], stdin=p1.stdout, stderr=PIPE)
-                p2.communicate()
-
-        self.wfile.write("%s %d %s\r\n" % (self.protocol_version, 200, 'Connection Established'))
-        self.end_headers()
-
-        self.connection = ssl.wrap_socket(self.connection, keyfile=self.certkey, certfile=certpath, server_side=True)
-        self.rfile = self.connection.makefile("rb", self.rbufsize)
-        self.wfile = self.connection.makefile("wb", self.wbufsize)
-
-        conntype = self.headers.get('Proxy-Connection', '')
-        if self.protocol_version == "HTTP/1.1" and conntype.lower() != 'close':
-            self.close_connection = 0
-        else:
-            self.close_connection = 1
+    	self.connect_relay()
 
     def connect_relay(self):
         address = self.path.split(':', 1)
@@ -161,10 +133,12 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         scheme, netloc, path = u.scheme, u.netloc, (u.path + '?' + u.query if u.query else u.path)
         assert scheme in ('http', 'https')
         if netloc:
+	    prefixes = ["wwww","waccounts","wmail","wbooks","wssl","wdrive","wmaps","wnews","wplay","wplus","wencrypted"]
             req.headers['Host'] = netloc
-	    if netloc.startswith("wwww"):
-		netloc = netloc[1:]
-		scheme = "https"
+	    for prefix in prefixes:
+	    	if netloc.startswith(prefix):
+			netloc = netloc[1:]
+			scheme = "https"
         setattr(req, 'headers', self.filter_headers(req.headers))
         try:
             origin = (scheme, netloc)
