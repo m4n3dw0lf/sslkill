@@ -62,10 +62,6 @@ class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
             return HTTPServer.handle_error(self, request, client_address)
 
 class ProxyRequestHandler(BaseHTTPRequestHandler):
-    cakey = 'ca.key'
-    cacert = 'ca.crt'
-    certkey = 'cert.key'
-    certdir = 'certs/'
     timeout = 5
     lock = threading.Lock()
 
@@ -110,10 +106,6 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
                 other.sendall(data)
 
     def do_GET(self):
-        if self.path == 'http://sslkill/':
-            self.send_cacert()
-            return
-
         req = self
         content_length = int(req.headers.get('Content-Length', 0))
         req_body = self.rfile.read(content_length) if content_length else None
@@ -133,7 +125,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         scheme, netloc, path = u.scheme, u.netloc, (u.path + '?' + u.query if u.query else u.path)
         assert scheme in ('http', 'https')
         if netloc:
-	    prefixes = ["wwww","waccounts","wmail","wbooks","wssl","wdrive","wmaps","wnews","wplay","wplus","wencrypted","wassets","wgraph","wfonts","wlogin","wsecure","wwiki"]
+	    prefixes = ["wwww","waccounts","wmail","wbooks","wssl","wdrive","wmaps","wnews","wplay","wplus","wencrypted","wassets","wgraph","wfonts","wlogin","wsecure","wwiki","wwallet","wmyaccount","wphotos","wdocs",]
             req.headers['Host'] = netloc
 	    for prefix in prefixes:
 	    	if netloc.startswith(prefix):
@@ -176,7 +168,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         content_encoding = res.headers.get('Content-Encoding', 'identity')
         res_body_plain = self.decode_content_body(res_body, content_encoding)
 
-        res_body_modified = self.response_handler(req, req_body, res, res_body_plain, scheme, netloc, path)
+        res_body_modified = self.response_handler(req, req_body, res, res_body_plain, scheme, netloc, path, self.command)
         if res_body_modified is False:
             self.send_error(403)
             return
@@ -259,21 +251,10 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
             raise Exception("Unknown Content-Encoding: %s" % encoding)
         return text
 
-    def send_cacert(self):
-        with open(self.cacert, 'rb') as f:
-            data = f.read()
-
-        self.wfile.write("%s %d %s\r\n" % (self.protocol_version, 200, 'OK'))
-        self.send_header('Content-Type', 'application/x-x509-ca-cert')
-        self.send_header('Content-Length', len(data))
-        self.send_header('Connection', 'close')
-        self.end_headers()
-        self.wfile.write(data)
-
     def request_handler(self, req, req_body):
         pass
 
-    def response_handler(self, req, req_body, res, res_body, scheme, netloc, path):
+    def response_handler(self, req, req_body, res, res_body, scheme, netloc, path, method):
         pass
 
 
