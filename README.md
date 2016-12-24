@@ -10,6 +10,7 @@ SSL Kill v0.5<br/>
 
 ## Installation
 ```
+   $sudo apt-get install build-essential python-dev libnetfilter-queue-dev
    $git clone https://github.com/m4n3dw0lf/sslkill
    $cd sslkill
    $sudo pip install -r requirements.txt
