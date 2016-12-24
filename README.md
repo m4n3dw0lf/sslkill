@@ -1,7 +1,7 @@
 # sslkill
 TOOL IN BETA TESTING<br/>
 
-SSL Kill is a man-in-the-middle forced transparent proxy that modifies HTTP requests and responses in order to avoid SSL and HSTS for that it use a two-way ARP spoofing plus a forced DNS resolver that redirects all name server queries to the attacker IP Address. This tool is for information security researchers and should not be used for criminal acts
+SSL Kill is a forced man-in-the-middle transparent proxy that modifies HTTP requests and responses in order to avoid SSL and HSTS, to achieve that, it use a two-way ARP spoofing plus a forced DNS resolver that redirects all name server queries to the attacker IP Address. This tool is for information security researchers and should not be used for criminal acts
 
 
 SSL Kill v0.5<br/>
