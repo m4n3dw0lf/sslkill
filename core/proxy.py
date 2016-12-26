@@ -125,7 +125,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         scheme, netloc, path = u.scheme, u.netloc, (u.path + '?' + u.query if u.query else u.path)
         assert scheme in ('http', 'https')
         if netloc:
-	    prefixes = ["wwww","waccounts","wmail","wbooks","wssl","wdrive","wmaps","wnews","wplay","wplus","wencrypted","wassets","wgraph","wfonts","wlogin","wsecure","wwiki","wwallet","wmyaccount","wphotos","wdocs","wlh3"]
+	    prefixes = ["wwww","waccounts","wmail","wbooks","wssl","wdrive","wmaps","wnews","wplay","wplus","wencrypted","wassets","wgraph","wfonts","wlogin","wsecure","wwiki","wwallet","wmyaccount","wphotos","wdocs","wlh3","wapis"]
             req.headers['Host'] = netloc
 	    for prefix in prefixes:
 	    	if netloc.startswith(prefix):
@@ -158,6 +158,8 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
                 return
 
             res_body = res.read()
+	except TypeError:
+		pass
         except Exception as e:
 	    print "Exception !!! ---- > : {}".format(e)
             if origin in self.tls.conns:
@@ -167,7 +169,6 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
 
         content_encoding = res.headers.get('Content-Encoding', 'identity')
         res_body_plain = self.decode_content_body(res_body, content_encoding)
-
         res_body_modified = self.response_handler(req, req_body, res, res_body_plain, scheme, netloc, path, self.command)
         if res_body_modified is False:
             self.send_error(403)

