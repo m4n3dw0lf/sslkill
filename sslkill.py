@@ -122,12 +122,13 @@ class SSLStripRequestHandler(ProxyRequestHandler):
 			res_body.replace("https://","http://w")
 		else:
 			try:
+				hds = {}
+				hds['User-Agent'] = req.headers['User-Agent']
 				if method == "POST":
-					fake_body = urllib2.urlopen("{}://{}{}".format(scheme, netloc, path), data=req_body).read()
-					res_body = fake_body.replace("https://", "http://w")
+					original_request = urllib2.Request("{}://{}{}".format(scheme, netloc, path), data=req_body, headers=hds)
+					original_body = urllib2.urlopen(original_request).read()
+					res_body = original_body.replace("https://", "http://w")
 				else:
-					hds = {}
-					hds['User-Agent'] = req.headers['User-Agent']
 					original_request = urllib2.Request("{}://{}{}".format(scheme, netloc, path),headers=hds)
 					original_body = urllib2.urlopen(original_request).read()
 					res_body = original_body.replace("https://","http://w")
