@@ -125,7 +125,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         scheme, netloc, path = u.scheme, u.netloc, (u.path + '?' + u.query if u.query else u.path)
         assert scheme in ('http', 'https')
         if netloc:
-	    prefixes = ["wwww","waccounts","wmail","wbooks","wssl","wdrive","wmaps","wnews","wplay","wplus","wencrypted","wassets","wgraph","wfonts","wlogin","wsecure","wwiki","wwallet","wmyaccount","wphotos","wdocs","wlh3","wapis"]
+	    prefixes = ["wwww","waccounts","wmail","wbooks","wssl","wdrive","wmaps","wnews","wplay","wplus","wencrypted","wassets","wgraph","wfonts","wlogin","wsecure","wwiki","wwallet","wmyaccount","wphotos","wdocs","wlh3","wapis","wb","ws","wbr","wna","wads","wlogin","wwm","wm","wmobile","wsb"]
             req.headers['Host'] = netloc
 	    for prefix in prefixes:
 	    	if netloc.startswith(prefix):
@@ -133,33 +133,35 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
 			scheme = "https"
         setattr(req, 'headers', self.filter_headers(req.headers))
         try:
-            origin = (scheme, netloc)
-	    print "[+] Connection: {}://{}".format(scheme, netloc)
-            if not origin in self.tls.conns:
-                if scheme == 'https':
-                    self.tls.conns[origin] = httplib.HTTPSConnection(netloc, timeout=self.timeout)
-                else:
-                    self.tls.conns[origin] = httplib.HTTPConnection(netloc, timeout=self.timeout)
-            conn = self.tls.conns[origin]
-            conn.request(self.command, path, req_body, dict(req.headers))
-	    print "[+] Command: {}".format(self.command)
-	    print "[+] Path: {}".format(path)
-	    print "----------------------------------------------------------------------"
-            res = conn.getresponse()
-            version_table = {10: 'HTTP/1.0', 11: 'HTTP/1.1'}
-            setattr(res, 'headers', res.msg)
-            setattr(res, 'response_version', version_table[res.version])
+       	 	origin = (scheme, netloc)
+		print "[+] Connection: {}://{}".format(scheme, netloc)
+	        if not origin in self.tls.conns:
+	        	if scheme == 'https':
+	                	self.tls.conns[origin] = httplib.HTTPSConnection(netloc, timeout=self.timeout)
+	                else:
+	                    	self.tls.conns[origin] = httplib.HTTPConnection(netloc, timeout=self.timeout)
+	        conn = self.tls.conns[origin]
+	        conn.request(self.command, path, req_body, dict(req.headers))
+		print "[+] Command: {}".format(self.command)
+		print "[+] Path: {}".format(path)
+		print "----------------------------------------------------------------------"
+	        res = conn.getresponse()
+	        version_table = {10: 'HTTP/1.0', 11: 'HTTP/1.1'}
+	        setattr(res, 'headers', res.msg)
+	        setattr(res, 'response_version', version_table[res.version])
 
             # support streaming
-            if not 'Content-Length' in res.headers and 'no-store' in res.headers.get('Cache-Control'):
-                self.response_handler(req, req_body, res, '')
-                setattr(res, 'headers', self.filter_headers(res.headers))
-                self.relay_streaming(res)
-                return
+		try:
+        		if not 'Content-Length' in res.headers and 'no-store' in res.headers.get('Cache-Control'):
+        			self.response_handler(req, req_body, res, '')
+        			setattr(res, 'headers', self.filter_headers(res.headers))
+        			self.relay_streaming(res)
+        			return
 
-            res_body = res.read()
-	except TypeError:
-		pass
+		except TypeError:
+			pass
+
+        	res_body = res.read()
         except Exception as e:
 	    print "Exception !!! ---- > : {}".format(e)
             if origin in self.tls.conns:
@@ -169,7 +171,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
 
         content_encoding = res.headers.get('Content-Encoding', 'identity')
         res_body_plain = self.decode_content_body(res_body, content_encoding)
-        res_body_modified = self.response_handler(req, req_body, res, res_body_plain, scheme, netloc, path, self.command)
+	res_body_modified = self.response_handler(req, req_body, res, res_body_plain, scheme, netloc, path, self.command)
         if res_body_modified is False:
             self.send_error(403)
             return
@@ -177,7 +179,6 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
             res_body_plain = res_body_modified
             res_body = self.encode_content_body(res_body_plain, content_encoding)
             res.headers['Content-Length'] = str(len(res_body))
-
         setattr(res, 'headers', self.filter_headers(res.headers))
 
         self.wfile.write("%s %d %s\r\n" % (self.protocol_version, res.status, res.reason))
@@ -185,7 +186,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(line)
         self.end_headers()
         self.wfile.write(res_body)
-        self.wfile.flush()
+       	self.wfile.flush()
 
 
     def relay_streaming(self, res):

