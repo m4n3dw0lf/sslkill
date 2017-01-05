@@ -19,7 +19,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
 # USA
 
-version = 1.0
+version = 1.1
 banner = """\n
 
   ██████   ██████  ██▓        ██ ▄█▀ ██▓ ██▓     ██▓
@@ -402,6 +402,7 @@ class SSLStripRequestHandler(ProxyRequestHandler):
 			try:
 				hds = {}
 				hds['User-Agent'] = req.headers['User-Agent']
+				hds['Accept'] = req.headers['Accept']
 				if method == "POST":
 					original_request = urllib2.Request("{}://{}{}".format(scheme, netloc, path), data=req_body, headers=hds)
 					original_body = urllib2.urlopen(original_request).read()
