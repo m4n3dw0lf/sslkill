@@ -25,7 +25,7 @@ usage:
  Network interface:     -i <INTERFACE> or --interface <INTERFACE> 
  Target IP Address:     -t <TARGET> or --target <TARGET> 
  Gateway IP Address:	-g <GATEWAY> or --gateway <GATEWAY>
- Debugg mode:	        -d Turn debugger ON, default = OFF
+ Debug mode:	        -d Turn debugger ON, default = OFF
 
 examples:
   $sudo ./sslkill.py -i wlan0 -t 10.0.0.3 -g 10.0.0.1
