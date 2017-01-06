@@ -40,7 +40,7 @@ help = """\nusage:
  Network interface:     -i <INTERFACE> or --interface <INTERFACE>
  Target IP Address:     -t <TARGET> or --target <TARGET>
  Gateway IP Address:    -g <GATEWAY> or --gateway <GATEWAY> 
- Debug mode:           -d Turn debugger ON, default = OFF
+ Debug mode:            -d Turn debugger ON, default = OFF
 
 example:
   $sudo ./sslkill.py -i wlan0 -t 10.0.0.3 -g 10.0.0.1
