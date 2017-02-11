@@ -15,8 +15,8 @@ SSL Kill v1.1<br/>
    $git clone https://github.com/m4n3dw0lf/sslkill
    $cd sslkill
    $sudo pip install -r requirements.txt
-   $sudo chmod +x sslkill
-   $sudo ./sslkill -h
+   $sudo chmod +x sslkill.py
+   $sudo ./sslkill.py -h
 ```
 
 ## Basics
