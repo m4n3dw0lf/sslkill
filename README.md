@@ -6,7 +6,7 @@ SSL Kill is a forced man-in-the-middle transparent proxy that modifies HTTP requ
 SSL Kill v1.2<br/>
 
 
-![alt text] (banner.png)
+![alt text](banner.png)
 
 
 ## Installation
